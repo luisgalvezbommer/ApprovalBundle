@@ -15,11 +15,21 @@
         tr.table-section-header h3 {
             margin: 0;
         }
+
+        #to-approve-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
     </style>
 {% endblock %}
 
 {% block report %}
-    {{ tables.actions(all_rows_datatable) }}
+    <div id="to-approve-actions">
+        {{ tables.actions(all_rows_datatable) }}
+        <button class="btn btn-default" id="auto-approve-button">{{ 'table.auto_approve'|trans}}</button>
+    </div>
     {{ tables.header(all_rows_datatable) }}
 
     {% set sortedColumns = all_rows_datatable.sortedColumnNames %}

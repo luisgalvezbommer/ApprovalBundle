@@ -126,6 +126,10 @@
         <source>stats.duration_actual</source>
         <target>Erfasste Dauer</target>
       </trans-unit>
+      <trans-unit id="aB3cD_eF" resname="table.auto_approve">
+        <source>table.auto_approve</source>
+        <target>Automatische Genehmigung</target>
+      </trans-unit>
       <trans-unit id="YDDLiv4" resname="table.past_weeks">
         <source>table.past_weeks</source>
         <target>Vergangene Wochen</target>

@@ -122,6 +122,10 @@
         <source>stats.duration_actual</source>
         <target>Stvarno trajanje</target>
       </trans-unit>
+      <trans-unit id="aB3cD_eF" resname="table.auto_approve">
+        <source>table.auto_approve</source>
+        <target>Automatsko odobrenje</target>
+      </trans-unit>
       <trans-unit id="YDDLiv4" resname="table.past_weeks">
         <source>table.past_weeks</source>
         <target>Prošli tjedan</target>
