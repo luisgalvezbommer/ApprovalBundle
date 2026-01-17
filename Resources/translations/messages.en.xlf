@@ -130,6 +130,10 @@
         <source>table.auto_approve</source>
         <target>Auto approval</target>
       </trans-unit>
+      <trans-unit id="xK9mL2pQ" resname="table.auto_approve_confirm">
+        <source>table.auto_approve_confirm</source>
+        <target>Do you want to automatically approve x weeks?</target>
+      </trans-unit>
       <trans-unit id="YDDLiv4" resname="table.past_weeks">
         <source>table.past_weeks</source>
         <target>Past weeks</target>

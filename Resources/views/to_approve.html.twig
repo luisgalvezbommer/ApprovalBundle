@@ -28,7 +28,24 @@
 {% block report %}
     <div id="to-approve-actions">
         {{ tables.actions(all_rows_datatable) }}
-        <button class="btn btn-default" id="auto-approve-button">{{ 'table.auto_approve'|trans}}</button>
+        <button class="btn btn-default" id="auto-approve-button" data-bs-toggle="modal" data-bs-target="#deniedMessage">{{ 'table.auto_approve'|trans}}</button>
+    </div>
+    <div class="modal fade" id="deniedMessage" tabindex="-1" aria-labelledby="deniedMessageLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deniedMessageLabel">{{ 'table.auto_approve'|trans}}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>{{ 'table.auto_approve_confirm'|trans}}</p>
+                </div>
+                <div class="modal-footer">
+                    <a href="#" class="btn btn-primary pull-left" id="deniedLink">{{ 'action.save'|trans }}</a>
+                    <button type="button" class="btn btn-cancel" data-bs-dismiss="modal">{{ 'action.close'|trans }}</button>
+                </div>
+            </div>
+        </div>
     </div>
     {{ tables.header(all_rows_datatable) }}
 

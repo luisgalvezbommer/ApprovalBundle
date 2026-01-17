@@ -126,6 +126,10 @@
         <source>table.auto_approve</source>
         <target>Automatsko odobrenje</target>
       </trans-unit>
+      <trans-unit id="xK9mL2pQ" resname="table.auto_approve_confirm">
+        <source>table.auto_approve_confirm</source>
+        <target>Želite li automatski odobriti 777 tjedana?</target>
+      </trans-unit>
       <trans-unit id="YDDLiv4" resname="table.past_weeks">
         <source>table.past_weeks</source>
         <target>Prošli tjedan</target>
