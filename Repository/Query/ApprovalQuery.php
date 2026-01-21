@@ -14,7 +14,7 @@ class ApprovalQuery extends BaseQuery implements DateRangeInterface
     /**
      * @var array<User>
      */
-    public array $users = [];
+    private array $users = [];
     private array $weeks = [];
     private array $statuses = [];
 
@@ -44,5 +44,10 @@ class ApprovalQuery extends BaseQuery implements DateRangeInterface
     public function getUsers(): array
     {
         return array_values($this->users);
+    }
+
+    public function setUsers(array $users): void
+    {
+        $this->users = $users;
     }
 }

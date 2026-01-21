@@ -176,6 +176,8 @@ class WeekReportController extends BaseApprovalController
             return $this->redirectToRoute('approval_bundle_to_approve');
         }
 
+        $session = $request->getSession();
+        $session->set('query', $query);
         if ($this->settingsTool->getConfiguration(ConfigEnum::APPROVAL_TEAMLEAD_SELF_APPROVE_NY) == '1') {
             $users = $this->getUsers(true);
         } else {
@@ -269,11 +271,50 @@ class WeekReportController extends BaseApprovalController
 
         $allRows = $this->sortArrayByQuery($allRows, $query);
 
+        foreach ($allRows as &$row) {
+            $timesheetQuery = new TimesheetQuery();
+            $timesheetQuery->setUser($this->userRepository->find($row['userId']));
+            $dateRange = new DateRange();
+            $dateRange->setBegin($row['week']->value);
+            $dateRange->setEnd((clone $row['week']->value)->modify('+6 days')->setTime(23, 59, 59));
+            $timesheetQuery->setDateRange($dateRange);
+            $timesheetQuery->setOrderBy('date');
+            $timesheetQuery->setOrderBy('begin');
+            $timesheetQuery->setOrder(BaseQuery::ORDER_ASC);
+
+            $timesheets = $this->timesheetRepository->getTimesheetsForQuery($timesheetQuery);
+            if (
+                $this->settingsTool->isInConfiguration(ConfigEnum::APPROVAL_BREAKCHECKS_NY) == false or
+                $this->settingsTool->getConfiguration(ConfigEnum::APPROVAL_BREAKCHECKS_NY)
+            ) {
+                $errors = $this->breakTimeCheckToolGER->checkBreakTime($timesheets);
+            } else {
+                $errors = [];
+            }
+
+            $hasErrors = array_filter($errors, function ($error) {
+                return !empty($error);
+            });
+
+            if (!empty($hasErrors)) {
+                $row['hasErrors'] = true;
+            } else {
+                $row['hasErrors'] = false;
+            }
+            unset($row);
+        }
+
+        $weeksSubmitted = count(array_filter($allRows, function ($row) {
+            return isset($row['status']) && $row['status'] === "submitted";
+        }));
+
+
         $pastRows = [];
         $currentRows = [];
         $futureRows = [];
-        $currentWeek = (new DateTime('now'))->modify('next monday')->modify('-2 week')->format('Y-m-d');
-        $futureWeek = (new DateTime('now'))->modify('next monday')->modify('-1 week')->format('Y-m-d');
+        $currentWeek = (new DateTime('now'))->modify('next monday')->modify('-1 week')->format('Y-m-d');
+        $futureWeek = (new DateTime('now'))->modify('next monday')->format('Y-m-d');
+
         foreach ($allRows as $row) {
             if ($row['startDate'] >= $futureWeek) {
                 $futureRows[] = $row;
@@ -303,6 +344,9 @@ class WeekReportController extends BaseApprovalController
             'past_rows' => $pastRows,
             'current_rows' => $currentRows,
             'future_rows' => $futureRows,
+            'weeks_submitted' => $weeksSubmitted,
+            'auto_approve_success' => $request->query->getInt('auto_approve_success', 0),
+            'auto_approve_fail' => $request->query->getInt('auto_approve_fail', 0),
             'warningNoUsers' => $warningNoUsers
         ] + $this->getDefaultTemplateParams($this->settingsTool));
     }

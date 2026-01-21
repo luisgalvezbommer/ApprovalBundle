@@ -128,7 +128,11 @@
       </trans-unit>
       <trans-unit id="xK9mL2pQ" resname="table.auto_approve_confirm">
         <source>table.auto_approve_confirm</source>
-        <target>Želite li automatski odobriti 777 tjedana?</target>
+        <target>Želite li automatski odobriti %count% tjedana?</target>
+      </trans-unit>
+      <trans-unit id="R7kLm2Qf" resname="table.auto_approve_result">
+        <source>table.auto_approve_result</source>
+        <target>%success% tjedana automatski odobreno, %fail% neuspješno.</target>
       </trans-unit>
       <trans-unit id="YDDLiv4" resname="table.past_weeks">
         <source>table.past_weeks</source>
@@ -141,6 +145,10 @@
       <trans-unit id="dKDLQKN" resname="table.future_week">
         <source>table.future_week</source>
         <target>Nadolazećih tjedana</target>
+      </trans-unit>
+      <trans-unit id="Qx7pLmA2" resname="table.has_errors_tooltip">
+        <source>table.has_errors_tooltip</source>
+        <target>Ima greške</target>
       </trans-unit>
       <trans-unit id="oTr3M.5" resname="table.approve_user">
         <source>table.approve_user</source>

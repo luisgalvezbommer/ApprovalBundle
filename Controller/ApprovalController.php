@@ -9,7 +9,13 @@
 
 namespace KimaiPlugin\ApprovalBundle\Controller;
 
+use App\Entity\User;
+use App\Entity\Team;
+use App\Form\Model\DateRange;
 use App\Repository\UserRepository;
+use App\Repository\TimesheetRepository;
+use App\Repository\Query\BaseQuery;
+use App\Repository\Query\TimesheetQuery;
 use DateTime;
 use KimaiPlugin\ApprovalBundle\Entity\Approval;
 use KimaiPlugin\ApprovalBundle\Entity\ApprovalHistory;
@@ -18,6 +24,7 @@ use KimaiPlugin\ApprovalBundle\Repository\ApprovalHistoryRepository;
 use KimaiPlugin\ApprovalBundle\Repository\ApprovalRepository;
 use KimaiPlugin\ApprovalBundle\Repository\ApprovalStatusRepository;
 use KimaiPlugin\ApprovalBundle\Repository\LockdownRepository;
+use KimaiPlugin\ApprovalBundle\Toolbox\BreakTimeCheckToolGER;
 use KimaiPlugin\ApprovalBundle\Toolbox\EmailTool;
 use KimaiPlugin\ApprovalBundle\Toolbox\SettingsTool;
 use KimaiPlugin\ApprovalBundle\Enumeration\ConfigEnum;
@@ -37,7 +44,9 @@ class ApprovalController extends BaseApprovalController
         private UserRepository $userRepository,
         private EmailTool $emailTool,
         private SettingsTool $settingsTool,
-        private LockdownRepository $lockdownRepository
+        private LockdownRepository $lockdownRepository,
+        private TimesheetRepository $timesheetRepository,
+        private BreakTimeCheckToolGER $breakTimeCheckToolGER
     ) {
     }
 
@@ -47,7 +56,7 @@ class ApprovalController extends BaseApprovalController
         $userId = $request->query->get('user');
         $date = $request->query->get('date');
         $approval = $this->createAddToApproveForm($userId, $date);
-        if ($this->settingsTool->getBooleanConfiguration(ConfigEnum::APPROVAL_MAIL_SUBMITTED_NY, true)){
+        if ($this->settingsTool->getBooleanConfiguration(ConfigEnum::APPROVAL_MAIL_SUBMITTED_NY, true)) {
             $this->emailTool->sendApproveWeekEmail($approval, $this->approvalRepository);
         }
         $this->lockdownRepository->updateLockWeek($approval, $this->approvalRepository);
@@ -56,6 +65,119 @@ class ApprovalController extends BaseApprovalController
             'user' => $userId,
             'date' => $date
         ]));
+    }
+
+    #[Route(path: '/auto_approve', name: 'auto_approve', methods: ['GET'])]
+    public function autoApproveAction(Request $request): RedirectResponse
+    {
+        if ($this->settingsTool->getConfiguration(ConfigEnum::APPROVAL_TEAMLEAD_SELF_APPROVE_NY) == '1') {
+            $users = $this->getUsers(true);
+        } else {
+            $users = $this->getUsers(false);
+        }
+
+        $query = $request->getSession()->get('query');
+
+        if (!empty($query->getUsers())) {
+            $users = $query->getUsers();
+        }
+        $submittedApprovals = $this->approvalRepository->getUserApprovalsFiltered($users, $query);
+
+        $countSuccessfullApprovals = 0;
+        $countFailedApprovals = 0;
+
+        foreach ($submittedApprovals as $approval) {
+            $approval = $this->approvalRepository->checkLastStatus(
+                $approval->getStartDate(),
+                $approval->getEndDate(),
+                $approval->getUser(),
+                ApprovalStatus::SUBMITTED,
+                $approval
+            );
+
+            if (!$approval || $approval->getHistory()[0]->getStatus()->getName() !== ApprovalStatus::SUBMITTED) {
+                continue;
+            }
+
+            $timesheetQuery = new TimesheetQuery();
+            $timesheetQuery->setUser($approval->getUser());
+            $dateRange = new DateRange();
+            $dateRange->setBegin($approval->getStartDate());
+            $dateRange->setEnd((clone $approval->getEndDate())->setTime(23, 59, 59));
+            $timesheetQuery->setDateRange($dateRange);
+            $timesheetQuery->setOrderBy('date');
+            $timesheetQuery->setOrderBy('begin');
+            $timesheetQuery->setOrder(BaseQuery::ORDER_ASC);
+
+
+            $timesheets = $this->timesheetRepository->getTimesheetsForQuery($timesheetQuery);
+
+            if (
+                $this->settingsTool->isInConfiguration(ConfigEnum::APPROVAL_BREAKCHECKS_NY) == false or
+                $this->settingsTool->getConfiguration(ConfigEnum::APPROVAL_BREAKCHECKS_NY)
+            ) {
+                $errors = $this->breakTimeCheckToolGER->checkBreakTime($timesheets);
+            } else {
+                $errors = [];
+            }
+
+            $hasErrors = array_filter($errors, function ($error) {
+                return !empty($error);
+            });
+
+            if ($approval && empty($hasErrors)) {
+                $approval = $this->createNewApproveHistory($approval->getId(), ApprovalStatus::APPROVED);
+                if ($this->settingsTool->getBooleanConfiguration(ConfigEnum::APPROVAL_MAIL_ACTION_NY, true)) {
+                    $this->emailTool->sendStatusChangedEmail(
+                        $approval,
+                        $this->getUser()->getDisplayName(),
+                        $this->approvalRepository->getUrl((string) $approval->getUser()->getId(), $approval->getStartDate()->format('Y-m-d'))
+                    );
+                }
+                $this->lockdownRepository->updateLockWeek($approval, $this->approvalRepository);
+                $countSuccessfullApprovals++;
+            } else {
+                $countFailedApprovals++;
+            }
+
+            $date = $request->query->get('date');
+            $this->emailIfClosedMonth($date);
+        }
+
+        if ($query) {
+            $params = [
+                'page' => $query->getPage(),
+                'orderBy' => $query->getOrderBy(),
+                'order' => $query->getOrder(),
+                'auto_approve_success' => $countSuccessfullApprovals,
+                'auto_approve_fail' => $countFailedApprovals,
+            ];
+
+            if ($query->getSearchTerm() && !empty($query->getSearchTerm()->getSearchTerm())) {
+                $params['searchTerm'] = $query->getSearchTerm()->getSearchTerm();
+                $params['performSearch'] = 'performSearch';
+            }
+
+            if ($query->getBegin() && $query->getEnd()) {
+                $params['daterange'] = $query->getBegin()->format('d.m.Y') . ' - ' . $query->getEnd()->format('d.m.Y');
+            }
+
+            if (!empty($query->getUsers())) {
+                $params['users'] = array_map(function ($user) {
+                    return $user->getId();
+                }, $query->getUsers());
+            }
+
+            if (!empty($query->getStatus())) {
+                $params['status'] = $query->getStatus();
+            }
+
+            // Add CSRF token if needed
+            $params['_token'] = $request->getSession()->get('_csrf/toolbar');
+            return new RedirectResponse($this->urlGenerator->generate('approval_bundle_to_approve', $params));
+        }
+
+        return new RedirectResponse($this->urlGenerator->generate('approval_bundle_to_approve'));
     }
 
     #[Route(path: '/approve/{approveId}', defaults: ['approveId' => 0], name: 'approve', methods: ['GET'])]
@@ -71,7 +193,7 @@ class ApprovalController extends BaseApprovalController
         );
         if ($approval) {
             $approval = $this->createNewApproveHistory($approveId, ApprovalStatus::APPROVED);
-            if ($this->settingsTool->getBooleanConfiguration(ConfigEnum::APPROVAL_MAIL_ACTION_NY, true)){
+            if ($this->settingsTool->getBooleanConfiguration(ConfigEnum::APPROVAL_MAIL_ACTION_NY, true)) {
                 $this->emailTool->sendStatusChangedEmail(
                     $approval,
                     $this->getUser()->getDisplayName(),
@@ -129,7 +251,7 @@ class ApprovalController extends BaseApprovalController
         );
         if ($approval) {
             $approval = $this->createNewApproveHistory($approveId, ApprovalStatus::DENIED, $request->query->get('input'));
-            if ($this->settingsTool->getBooleanConfiguration(ConfigEnum::APPROVAL_MAIL_ACTION_NY, true)){
+            if ($this->settingsTool->getBooleanConfiguration(ConfigEnum::APPROVAL_MAIL_ACTION_NY, true)) {
                 $this->emailTool->sendStatusChangedEmail(
                     $approval,
                     $this->getUser()->getDisplayName(),
@@ -210,5 +332,59 @@ class ApprovalController extends BaseApprovalController
                 $this->emailTool->sendClosedWeekEmail((new DateTime($date))->format('F'));
             }
         }
+    }
+
+    private function getUsers(bool $includeOwnForTeam = true): array
+    {
+        if ($this->canManageAllPerson()) {
+            $users = $this->userRepository->findAll();
+        } elseif ($this->canManageTeam()) {
+            $users = [];
+            $user = $this->getUser();
+            /** @var Team $team */
+            foreach ($user->getTeams() as $team) {
+                if (\in_array($user, $team->getTeamleads())) {
+                    array_push($users, ...$team->getUsers());
+                } else {
+                    $users[] = $user;
+                }
+            }
+
+            if (empty($users)) {
+                $users = [$user];
+            }
+
+            $users = array_unique($users);
+
+            if (!$includeOwnForTeam) {
+                // remove the active user from the list
+                $index = array_search($this->getUser(), $users);
+                if ($index !== false) {
+                    unset($users[$index]);
+                }
+            }
+        } else {
+            $users = [$this->getUser()];
+        }
+
+        $users = array_reduce($users, function ($current, $user) {
+            $includeSuperAdmin = $this->settingsTool->getConfiguration(ConfigEnum::APPROVAL_INCLUDE_ADMIN_NY) == '1';
+            if ($user->isEnabled() && (!$user->isSuperAdmin() || $includeSuperAdmin)) {
+                $current[] = $user;
+            }
+
+            return $current;
+        }, []);
+
+        if (!empty($users)) {
+            usort(
+                $users,
+                function (User $userA, User $userB) {
+                    return strcmp(strtoupper($userA->getUsername()), strtoupper($userB->getUsername()));
+                }
+            );
+        }
+
+        return $users;
     }
 }
