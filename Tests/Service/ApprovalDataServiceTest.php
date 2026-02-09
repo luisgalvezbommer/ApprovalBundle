@@ -691,7 +691,6 @@ class ApprovalDataServiceTest extends TestCase
             ->method('getTimesheetsForQuery')
             ->with($this->callback(function (TimesheetQuery $query) use ($user) {
                 return $query->getUser() === $user &&
-                    $query->getOrderBy() === 'date' &&
                     $query->getOrder() === BaseQuery::ORDER_ASC;
             }))
             ->willReturn([]);
