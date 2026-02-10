@@ -164,6 +164,7 @@ class ApprovalDataService
         $dateRange->setEnd((clone $row['week']->value)->modify('+6 days')->setTime(23, 59, 59));
         $timesheetQuery->setDateRange($dateRange);
         $timesheetQuery->setOrderBy('date');
+        $timesheetQuery->setOrderBy('begin');
         $timesheetQuery->setOrder(BaseQuery::ORDER_ASC);
 
         return $this->timesheetRepository->getTimesheetsForQuery($timesheetQuery);

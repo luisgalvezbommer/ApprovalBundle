@@ -150,6 +150,26 @@
         <source>table.has_errors_tooltip</source>
         <target>Ima greške</target>
       </trans-unit>
+      <trans-unit id="pQ8mNx4" resname="menu.working_time_act_ger_check">
+        <source>menu.working_time_act_ger_check</source>
+        <target>Provjera članka 3 Zakona o radnom vremenu</target>
+      </trans-unit>
+      <trans-unit id="nR7jVqW" resname="label.compliance">
+        <source>label.compliance</source>
+        <target>Usklađenost</target>
+      </trans-unit>
+      <trans-unit id="vK2rTyL" resname="label.average_6months">
+        <source>label.average_6months</source>
+        <target>Prosječno 6 mjeseci</target>
+      </trans-unit>
+      <trans-unit id="hB9wXsF" resname="label.average_24weeks">
+        <source>label.average_24weeks</source>
+        <target>Prosječno 24 tjedna</target>
+      </trans-unit>
+      <trans-unit id="zM3cDgP" resname="label.average_daterange">
+        <source>label.average_daterange</source>
+        <target>Prosječni raspon datuma</target>
+      </trans-unit>
       <trans-unit id="oTr3M.5" resname="table.approve_user">
         <source>table.approve_user</source>
         <target>Korisnik</target>
